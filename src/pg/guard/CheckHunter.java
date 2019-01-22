@@ -2,35 +2,25 @@ package pg.guard;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import soot.Body;
-import soot.BodyTransformer;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Unit;
-import soot.Value;
 import soot.jimple.AbstractStmtSwitch;
 import soot.jimple.AssignStmt;
 import soot.jimple.IfStmt;
 import soot.jimple.InvokeExpr;
 import soot.jimple.InvokeStmt;
-import soot.jimple.JimpleBody;
 import soot.jimple.Stmt;
-import soot.jimple.StringConstant;
-import soot.jimple.infoflow.solver.cfg.InfoflowCFG;
 import soot.jimple.toolkits.callgraph.CallGraph;
 import soot.jimple.toolkits.callgraph.Edge;
-import soot.toolkits.graph.BriefUnitGraph;
 import soot.util.Chain;
 
 public class CheckHunter {
@@ -250,6 +240,12 @@ class huntCheckSwitch extends AbstractStmtSwitch {
 
 
 	private void logCheckInfo(String method, String checkOrNot, String permission) {
+		
+		SootMethod m = Scene.v().getMethod(method);
+		CallGraph cg = Scene.v().getCallGraph();
+		if (cg.edgesInto(m).hasNext() == false) {
+			return ;
+		}
 		try {
 			Guard.resultFile.write(method + ":" + checkOrNot + ":" + permission + "\n");
 		} catch (IOException e) {

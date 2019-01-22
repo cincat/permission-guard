@@ -12,12 +12,15 @@ import soot.BodyTransformer;
 import soot.IntType;
 import soot.Local;
 import soot.Modifier;
+import soot.NullType;
 import soot.RefType;
 import soot.Scene;
 import soot.SootClass;
 import soot.SootMethod;
 import soot.Type;
 import soot.Unit;
+import soot.Value;
+import soot.ValueBox;
 import soot.VoidType;
 import soot.javaToJimple.LocalGenerator;
 import soot.jimple.ArrayRef;
@@ -31,6 +34,7 @@ import soot.jimple.NeExpr;
 import soot.jimple.NewArrayExpr;
 import soot.jimple.NopStmt;
 import soot.jimple.StringConstant;
+import soot.jimple.internal.IdentityRefBox;
 import soot.util.Chain;
 
 public class PermissionTransformer extends BodyTransformer {
@@ -81,12 +85,6 @@ public class PermissionTransformer extends BodyTransformer {
 		if (method.getSignature().contains("<init>")) {
 			return ;
 		}
-		System.out.println(method.getSignature());
-//		SootClass c = body.getMethod().getDeclaringClass();
-//		while (c.hasSuperclass()) {
-//			System.out.println(c.getName());
-//			c = c.getSuperclass();
-//		}
 		int requestCode = Guard.injectMethodMeta.indexOf(method.getSignature());
 		int length = Guard.injectPermissionMeta.get(requestCode).size();
 		Chain<Unit> units = body.getUnits();
@@ -166,14 +164,19 @@ public class PermissionTransformer extends BodyTransformer {
 			units.insertBefore(patchUnits, unit);
 		}
 		
-
-		if (method.getDeclaringClass()
-				.getMethodUnsafe("void onRequestPermissionsResult(int, java.lang.String[], int[])") == null) {
-			instrumentCallback(method, requestCode);
-			return;
+		
+		if (body.getMethod().getDeclaringClass().declaresMethodByName("onRequestPermissionsResult") == false) {
+			instrumentCallback(stmt, requestCode, body);
+			return ;
 		}
+		
+//		if (method.getDeclaringClass()
+//				.getMethodUnsafe("void onRequestPermissionsResult(int, java.lang.String[], int[])") == null) {
+//			instrumentCallback(method, requestCode);
+//			return;
+//		}
 
-		if (hasCallbackForMethod(method) == true) {
+		if (hasCallbackForMethod(method, body) == true) {
 			return;
 		}
 
@@ -182,114 +185,130 @@ public class PermissionTransformer extends BodyTransformer {
 //		body.validate();
 	}
 
-	private void instrumentCallback(SootMethod method, int requestCode) {
-//		SootClass c = method.getDeclaringClass();
-//		SootMethod m = new SootMethod("onRequestPermissionsResult", Arrays.asList(new Type[] { IntType.v(),
-//				ArrayType.v(RefType.v("java.lang.String"), 1), ArrayType.v(IntType.v(), 1) }),
-//				VoidType.v(), Modifier.PUBLIC);
-////		FIX ME
-//		if (c.declaresMethodByName("onRequestPermissionsResult")) {
+	private void instrumentCallback(InvokeStmt stmt, int requestCode, Body body) {
+//		if (isActivity(body.getMethod().getDeclaringClass()) == false) {
 //			return ;
 //		}
-//		c.addMethod(m);
-//		JimpleBody b = Jimple.v().newBody(m);
-//		m.setActiveBody(b);
-//
-//		// create locals
-//		Local r0 = Jimple.v().newLocal("r0", RefType.v(c.getName()));
-//		Local r1 = Jimple.v().newLocal("r1", ArrayType.v(RefType.v("java.lang.String"), 1));
-//		Local r2 = Jimple.v().newLocal("r2", ArrayType.v(IntType.v(), 1));
-//		Local r3 = Jimple.v().newLocal("r3", RefType.v("android.widget.Toast"));
-//		Local i0 = Jimple.v().newLocal("i0", IntType.v());
-//
-//		//
-//		b.getLocals().add(r0);
-//		b.getLocals().add(r1);
-//		b.getLocals().add(r2);
-//		b.getLocals().add(r3);
-//		b.getLocals().add(i0);
-//
-//		// difference between identityStmt and assignStmt?
-//		Chain<Unit> units = b.getUnits();
-//		units.add(Jimple.v().newIdentityStmt(r0, Jimple.v().newThisRef(RefType.v(c.getName()))));
-//		units.add(Jimple.v().newIdentityStmt(i0, Jimple.v().newParameterRef(IntType.v(), 0)));
-//		units.add(Jimple.v().newIdentityStmt(r1,
-//				Jimple.v().newParameterRef(ArrayType.v(RefType.v("java.lang.String"), 1), 1)));
-//		units.add(Jimple.v().newIdentityStmt(r2, Jimple.v().newParameterRef(ArrayType.v(IntType.v(), 1), 2)));
-//
-//		NopStmt nop1 = Jimple.v().newNopStmt();
-//		NeExpr neExpr1 = Jimple.v().newNeExpr(i0, IntConstant.v(requestCode));
-//		IfStmt ifStmt1 = Jimple.v().newIfStmt(neExpr1, nop1);
-//		//
-//		// outer if statement
-//		{
-//			units.add(ifStmt1);
-//			NopStmt nop2 = Jimple.v().newNopStmt();
-//			
-////			condition indicate r2.length > 0
-//			units.add(Jimple.v().newAssignStmt(i0, Jimple.v().newLengthExpr(r2)));
-//			units.add(Jimple.v().newIfStmt(Jimple.v().newEqExpr(i0, IntConstant.v(0)), nop2));
-//			
-//			ArrayRef firstItem = Jimple.v().newArrayRef(r2, IntConstant.v(0));
-//			units.add(Jimple.v().newAssignStmt(i0, firstItem));
-//			NeExpr neExpr2 = Jimple.v().newNeExpr(i0, IntConstant.v(0));
-//			
-//			IfStmt ifStmt2 = Jimple.v().newIfStmt(neExpr2, nop2);
-//			// if
-//			{
-//				units.add(ifStmt2);
-////				SootMethod callPhone = Scene.v().getMethod(
-////						"<com.example.calltest.callPhoneActivity: void callPhone()>");
-//				InvokeStmt invokeMethod = Jimple.v().newInvokeStmt(
-//						Jimple.v().newVirtualInvokeExpr(r0, method.makeRef()));
-//				units.add(invokeMethod);
-//				// note: nop1 not nop2
-//				GotoStmt skipElse = Jimple.v().newGotoStmt(nop1);
-//				units.add(skipElse);
-//				units.add(nop2);
-//			}
-//
-//			// else
-//			{
-//				Scene.v().loadClassAndSupport("android.widget.Toast");
-//				SootClass toastClass = Scene.v().getSootClass("android.widget.Toast");
-//				SootMethod toast = toastClass.getMethod(
-//						"android.widget.Toast makeText(android.content.Context,java.lang.CharSequence,int)");
+//		System.out.println("instrumenting " + stmt.getInvokeExpr().getMethod().getSignature());
+		System.out.println(body.getMethod().getDeclaringClass().getName());
+		SootMethod method = stmt.getInvokeExpr().getMethod();
+//		SootClass c = method.getDeclaringClass();
+		SootClass c = body.getMethod().getDeclaringClass();
+		SootMethod m = new SootMethod("onRequestPermissionsResult", Arrays.asList(new Type[] { IntType.v(),
+				ArrayType.v(RefType.v("java.lang.String"), 1), ArrayType.v(IntType.v(), 1) }),
+				VoidType.v(), Modifier.PUBLIC);
+//		FIX ME
+		c.addMethod(m);
+		JimpleBody b = Jimple.v().newBody(m);
+		m.setActiveBody(b);
+
+		// create locals
+		Local r0 = Jimple.v().newLocal("r0", RefType.v(c.getName()));
+//		System.out.println(body.getMethod().getDeclaringClass().getType());
+//		Local r0 = Jimple.v().newLocal("r0", body.getMethod().getDeclaringClass().getType());
+		Local r1 = Jimple.v().newLocal("r1", ArrayType.v(RefType.v("java.lang.String"), 1));
+		Local r2 = Jimple.v().newLocal("r2", ArrayType.v(IntType.v(), 1));
+		Local r3 = Jimple.v().newLocal("r3", RefType.v("android.widget.Toast"));
+		Local r4 = Jimple.v().newLocal("r4", RefType.v(method.getDeclaringClass().getName()));
+		Local i0 = Jimple.v().newLocal("i0", IntType.v());
+		//
+		b.getLocals().add(r0);
+		b.getLocals().add(r1);
+		b.getLocals().add(r2);
+		b.getLocals().add(r3);
+		b.getLocals().add(r4);
+		b.getLocals().add(i0);
+		
+
+		// difference between identityStmt and assignStmt?
+		Chain<Unit> units = b.getUnits();
+		units.add(Jimple.v().newIdentityStmt(r0, Jimple.v().newThisRef(RefType.v(c.getName()))));
+		units.add(Jimple.v().newIdentityStmt(i0, Jimple.v().newParameterRef(IntType.v(), 0)));
+		units.add(Jimple.v().newIdentityStmt(r1,
+				Jimple.v().newParameterRef(ArrayType.v(RefType.v("java.lang.String"), 1), 1)));
+		units.add(Jimple.v().newIdentityStmt(r2, Jimple.v().newParameterRef(ArrayType.v(IntType.v(), 1), 2)));
+		
+		
+		NopStmt nop1 = Jimple.v().newNopStmt();
+		NeExpr neExpr1 = Jimple.v().newNeExpr(i0, IntConstant.v(requestCode));
+		IfStmt ifStmt1 = Jimple.v().newIfStmt(neExpr1, nop1);
+		//
+		// outer if statement
+		{
+			units.add(ifStmt1);
+			NopStmt nop2 = Jimple.v().newNopStmt();
+			
+//			condition indicate r2.length > 0
+			units.add(Jimple.v().newAssignStmt(i0, Jimple.v().newLengthExpr(r2)));
+			units.add(Jimple.v().newIfStmt(Jimple.v().newEqExpr(i0, IntConstant.v(0)), nop2));
+			
+			ArrayRef firstItem = Jimple.v().newArrayRef(r2, IntConstant.v(0));
+			units.add(Jimple.v().newAssignStmt(i0, firstItem));
+			NeExpr neExpr2 = Jimple.v().newNeExpr(i0, IntConstant.v(0));
+			
+			IfStmt ifStmt2 = Jimple.v().newIfStmt(neExpr2, nop2);
+			// if
+			{
+				units.add(ifStmt2);
+				Scene.v().loadClassAndSupport("android.widget.Toast");
+				SootClass toastClass = Scene.v().getSootClass("android.widget.Toast");
+				SootMethod toast = toastClass.getMethod(
+						"android.widget.Toast makeText(android.content.Context,java.lang.CharSequence,int)");
 //				Local tmp = Jimple.v().newLocal("tmp", RefType.v(toastClass));
 //				b.getLocals().add(tmp);
-//				units.add(Jimple.v().newAssignStmt(tmp, Jimple.v().newStaticInvokeExpr(toast.makeRef(),
-//						r0, StringConstant.v("Permission Denied"), IntConstant.v(0))));
-//				SootMethod show = Scene.v().getMethod("<android.widget.Toast: void show()>");
-//				units.add(Jimple.v()
-//						.newInvokeStmt(Jimple.v().newVirtualInvokeExpr(tmp, show.makeRef())));
-//				// units.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(toast.makeRef(),
-//				// r0,
-//				// StringConstant.v("Permission Denied"), IntConstant.v(0))));
-//
-//				// units.add(Jimple.v()
-//				// .newInvokeStmt(Jimple.v().newVirtualInvokeExpr(r0, show.makeRef())));
-//			}
-//			units.add(nop1);
-//		}
-//
-//		units.add(Jimple.v().newReturnVoidStmt());
-//		b.validate();
+				units.add(Jimple.v().newAssignStmt(r3, Jimple.v().newStaticInvokeExpr(toast.makeRef(),
+						r0, StringConstant.v("Permission Granted"), IntConstant.v(0))));
+				SootMethod show = Scene.v().getMethod("<android.widget.Toast: void show()>");
+				units.add(Jimple.v()
+						.newInvokeStmt(Jimple.v().newVirtualInvokeExpr(r3, show.makeRef())));
+
+				// note: nop1 not nop2
+				GotoStmt skipElse = Jimple.v().newGotoStmt(nop1);
+				units.add(skipElse);
+				units.add(nop2);
+			}
+
+			// else
+			{
+				Scene.v().loadClassAndSupport("android.widget.Toast");
+				SootClass toastClass = Scene.v().getSootClass("android.widget.Toast");
+				SootMethod toast = toastClass.getMethod(
+						"android.widget.Toast makeText(android.content.Context,java.lang.CharSequence,int)");
+//				Local tmp = Jimple.v().newLocal("tmp", RefType.v(toastClass));
+//				b.getLocals().add(tmp);
+				units.add(Jimple.v().newAssignStmt(r3, Jimple.v().newStaticInvokeExpr(toast.makeRef(),
+						r0, StringConstant.v("Permission Denied"), IntConstant.v(0))));
+				SootMethod show = Scene.v().getMethod("<android.widget.Toast: void show()>");
+				units.add(Jimple.v()
+						.newInvokeStmt(Jimple.v().newVirtualInvokeExpr(r3, show.makeRef())));
+				// units.add(Jimple.v().newInvokeStmt(Jimple.v().newStaticInvokeExpr(toast.makeRef(),
+				// r0,
+				// StringConstant.v("Permission Denied"), IntConstant.v(0))));
+
+				// units.add(Jimple.v()
+				// .newInvokeStmt(Jimple.v().newVirtualInvokeExpr(r0, show.makeRef())));
+			}
+			units.add(nop1);
+		}
+
+		units.add(Jimple.v().newReturnVoidStmt());
+		b.validate();
+//		c.addMethod(m);
 	}
 
 	private void instrumentInCallback(SootMethod method) {
 
 	}
 
-	private boolean hasCallbackForMethod(SootMethod method) {
-		SootMethod callBack = method.getDeclaringClass()
-				.getMethod("void onRequestPermissionsResult(int, java.lang.String[], int[])");
-		// if (callBack == null) return false;
+	private boolean hasCallbackForMethod(SootMethod method, Body body) {
+		SootMethod callBack = body.getMethod().getDeclaringClass().getMethodByNameUnsafe("onRequestPermissionsResult");
+		if (callBack == null) return false;
 		Iterator<Unit> iter = callBack.getActiveBody().getUnits().snapshotIterator();
 		while (iter.hasNext()) {
 			Unit unit = iter.next();
 			if (unit instanceof InvokeStmt) {
 				InvokeStmt stmt = (InvokeStmt) unit;
-				if (stmt.getInvokeExpr().getMethod() == method)
+				if (stmt.getInvokeExpr().getMethod().equals(method))
 					return true;
 			}
 		}

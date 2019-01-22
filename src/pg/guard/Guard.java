@@ -121,6 +121,10 @@ public class Guard {
 		// guard.renderCFG();
 		CheckHunter hunter = new CheckHunter();
 		hunter.hunt();
+		
+//		for (String s : Guard.injectMethodMeta) {
+//			System.out.println(s);
+//		}
 
 		resultFile.close();
 		detailFile.close();
