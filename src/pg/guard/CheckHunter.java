@@ -209,6 +209,7 @@ class huntCheckSwitch extends AbstractStmtSwitch {
 	
 	private void findInjectMeta(SootMethod curMethod, String permission, Set<SootMethod> visited) {
 //		final String activityType = "android.support.v4.app.ActivityCompat";
+//		System.out.println("in findInjectMeta");
 		CallGraph cg = Scene.v().getCallGraph();
 		Iterator<Edge> iter = cg.edgesInto(curMethod);
 		visited.add(curMethod);

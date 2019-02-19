@@ -43,8 +43,8 @@ public class Guard {
 
 	static {
 		try {
-			resultFile = new FileWriter("result.log", true);
-			detailFile = new FileWriter("detail.log", true);
+			resultFile = new FileWriter("result1.log");
+			detailFile = new FileWriter("detail1.log");
 			// logFile = new FileWriter("log.log");
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
@@ -58,6 +58,7 @@ public class Guard {
 	public static void main(String[] args) throws IOException {
 		// TODO Auto-generated method stub
 		// Logger log = LoggerFactory.getLogger(Guard.class);
+		
 		if (args.length != 3) {
 			System.out.println("permission-guard uasge: permission-guard apk-path android-platforms iccModel");
 			return;
@@ -83,6 +84,7 @@ public class Guard {
 		} catch (VersionNotFitException e) {
 			// TODO Auto-generated catch block
 			// e.printStackTrace();
+			//System.out.println("here");
 			resultFile.write("android version is under 23!\n");
 			return;
 		}
@@ -118,7 +120,7 @@ public class Guard {
 		});
 		app.getConfig().setCallgraphAlgorithm(CallgraphAlgorithm.CHA);
 		app.constructCallgraph();
-		// guard.renderCFG();
+//		guard.renderCFG();
 		CheckHunter hunter = new CheckHunter();
 		hunter.hunt();
 		
